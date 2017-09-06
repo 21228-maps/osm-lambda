@@ -14,38 +14,38 @@ var urlPath = [
 module.exports = {
   pushTrees: function () {
 
-    var githubPayload = {
+    var commitPayload = {
       path: process.env.GITHUB_PATH,
       message: moment().format('YYYY-MM-DD') + ' update',
     };
 
-    return fetchSHA()
-      .then(function (sha) {
+    return fetchContent()
+      .then(function (contentPayload) {
+        commitPayload.sha = contentPayload.sha;
+        return qo('node["natural"="tree"](' + process.env.EXTENT + ');out;')
+          .then(function (data) {
 
-        if (sha === 404) {
-          throw new Error('sha = 404');
-        }
-        githubPayload.sha = sha;
-        return qo('node["natural"="tree"](' + process.env.EXTENT + ');out;');
-      })
-      .then(function (data) {
+            var newVersion = JSON.stringify(data, null, 2);
+            var working = new Buffer(contentPayload.content, 'base64').toString('utf8');
 
-        var content = new Buffer(JSON.stringify(data, null, 2)).toString('base64')
-        console.info(content);
+            // if the new data identical to the old, there is no need to commit
+            // anything.
+            if (newVersion === working) {
+              console.info('no changes');
+              return;
+            }
 
-        githubPayload.content = content;
-        return updateGH(githubPayload);
-      })
-      .spread(function (response2, body2) {
-        console.info(body2)
+            commitPayload.content = new Buffer(newVersion).toString('base64');
+            return updateGH(commitPayload);
+          })
       })
       .catch(function (r) {
-        console.error(r);
+        throw new Error(r);
       });
   },
 };
 
-function fetchSHA() {
+function fetchContent() {
   var options = {
     method: 'GET',
     contentType: 'application/json',
@@ -60,9 +60,10 @@ function fetchSHA() {
 
   return request(options)
     .spread(function (response, body) {
-
-      var b = JSON.parse(body);
-      return b.sha;
+      return JSON.parse(body);
+    })
+    .catch(function (error) {
+      throw new Error(error);
     });
 }
 
