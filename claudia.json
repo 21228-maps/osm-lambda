@@ -1,7 +1,7 @@
 {
   "lambda": {
     "role": "osm-lambda-claudia-executor",
-    "name": "osm-lambda",
+    "name": "osm-lambda-claudia",
     "region": "us-east-1"
   }
 }
